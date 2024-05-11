@@ -34,7 +34,7 @@ get_r(double l0, double x, double y)
 static inline double
 get_p(double l0, double l1, double l2, double x, double y, double z)
 {
-    double r = get_radius(l0, x, y);
+    double r = get_r(l0, x, y);
     return (r*r+z*z-l1*l1-l2*l2)/(2*l1*l2);
 }
 
@@ -60,7 +60,7 @@ get_arm_angle(double l0, double l1, double l2, double x, double y, double z)
 static inline double
 get_bed_angle(double x, double y)
 {
-    return asin(c.x/sqrt(c.x*c.x+c.y*c.y))
+    return asin(x/sqrt(x*x+y*y));
 }
 
 static double
@@ -85,7 +85,7 @@ custom_stepper_arm_angle_calc(struct stepper_kinematics *sk, struct move *m, dou
     struct custom_stepper *fs = container_of(
                 sk, struct custom_stepper, sk);
     struct coord c = move_get_coord(m, move_time);
-    return get_arm_angle(fs->l0, fs->l1, fs->l2, cx, c.y, c.z);
+    return get_arm_angle(fs->l0, fs->l1, fs->l2, c.x, c.y, c.z);
 }
 
 struct stepper_kinematics * __visible
