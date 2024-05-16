@@ -45,8 +45,9 @@ class CustomKinematics:
         # return self.get_pos(bed_angle, l1_angle, l2_angle)
     
     def set_position(self, newpos, homing_axes):
-        for s in self.steppers:
-            s.set_position(newpos)
+        pass
+        # for s in self.steppers:
+        #     s.set_position(newpos)
     def home(self, homing_state):
         pass
     def check_move(self, move):
