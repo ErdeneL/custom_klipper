@@ -42,25 +42,23 @@ class Custom2Kinematics:
     def home(self, homing_state):
         
         toolhead = self.printer.lookup_object('toolhead')
+        for axis, rail in zip('xyz', self.rails):
+            rail.setup_itersolve('cartesian_stepper_alloc', axis.encode())
+
         for axis, rail in enumerate(self.rails):
             # ignore bed homing
             if rail.get_name(True) == 'b':
                 continue
-
-            # to trigger stepper individually, change kinematic to cartesian
-            # rail.setup_itersolve('cartesian_stepper_alloc', b'x')
-            # rail.get_steppers()[0].set_position((0., 0., 0.))
             
-            print("haha")
             homepos = [None, None, None, None]
             homepos[axis] = 0
             forcepos = list(homepos)
-            forcepos[axis] = 300
+            forcepos[axis] = -1
             homing_state.home_rails([rail], forcepos, homepos)
             
-            print("hehe")
-            # rail.setup_itersolve('custom_stepper_alloc'
-            #         , rail.get_name(True).encode(), self.l0, self.l1, self.l2)
+        for axis, rail in enumerate(self.rails):
+            rail.setup_itersolve('custom_stepper_alloc'
+                    , rail.get_name(True).encode(), self.l0, self.l1, self.l2)
         
         # set kinematic position
         curpos = toolhead.get_position()
