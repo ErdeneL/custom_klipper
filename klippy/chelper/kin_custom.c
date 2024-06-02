@@ -54,7 +54,8 @@ get_arm_angle(double l0, double l1, double l2, double x, double y, double z)
 {
     double cos_p = get_p(l0, l1, l2, x, y, z);
     double shoulder_angle = get_shoulder_angle(l0, l1, l2, x, y, z);
-    return acos(cos_p) - shoulder_angle;
+    double angle = acos(cos_p) - shoulder_angle;
+    return angle;
 }
 
 static inline double

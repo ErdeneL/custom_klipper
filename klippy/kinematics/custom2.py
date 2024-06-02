@@ -8,15 +8,22 @@ import math
 import stepper
 import logging
 
-class Custom2Kinematics:
-    def __init__(self, toolhead, config):
-        
+class CustomConfig:
+    def __init__(self, config) -> None:
         # printer config
         self.l0 = config.getfloat('l0', above=0.)
         self.l1 = config.getfloat('l1', above=0.)
         self.l2 = config.getfloat('l2', above=0.)
-        self.a1 = config.getfloat('a1', above=0.)
-        self.a2 = config.getfloat('a2', above=0.)
+        self.x = config.getfloat('x')
+        self.y = config.getfloat('y')
+        self.z = config.getfloat('z')
+
+
+class Custom2Kinematics:
+    def __init__(self, toolhead, config):
+        
+        c = CustomConfig(config)
+        self.config = c
         
         # future use
         self.printer = config.get_printer()
@@ -25,7 +32,7 @@ class Custom2Kinematics:
         self.rails = []
         for type in 'bsa':
             r = stepper.LookupMultiRail(config.getsection('stepper_'+type), units_in_radians=True)
-            r.setup_itersolve('custom_stepper_alloc', type.encode(), self.l0, self.l1, self.l2)
+            r.setup_itersolve('custom_stepper_alloc', type.encode(), c.l0, c.l1, c.l2)
             self.rails.append(r)
         self.steppers = [s for rail in self.rails for s in rail.get_steppers()]
         for s in self.get_steppers():
@@ -41,10 +48,10 @@ class Custom2Kinematics:
             rail.set_position(newpos)
     def home(self, homing_state):
         
-        toolhead = self.printer.lookup_object('toolhead')
+        # disable all motors, then move each stepper individually
+        self.printer.lookup_object('stepper_enable').motor_off()
         for axis, rail in zip('xyz', self.rails):
             rail.setup_itersolve('cartesian_stepper_alloc', axis.encode())
-
         for axis, rail in enumerate(self.rails):
             # ignore bed homing
             if rail.get_name(True) == 'b':
@@ -53,25 +60,19 @@ class Custom2Kinematics:
             homepos = [None, None, None, None]
             homepos[axis] = 0
             forcepos = list(homepos)
-            forcepos[axis] = -1
+            forcepos[axis] = -30
             homing_state.home_rails([rail], forcepos, homepos)
-            
+        
+        # set kinematic and initial position
+        config = self.config
         for axis, rail in enumerate(self.rails):
             rail.setup_itersolve('custom_stepper_alloc'
-                    , rail.get_name(True).encode(), self.l0, self.l1, self.l2)
-        
-        # set kinematic position
+                    , rail.get_name(True).encode(), config.l0, config.l1, config.l2)
+        toolhead = self.printer.lookup_object('toolhead')
         curpos = toolhead.get_position()
-        curpos[0] = 0   # ignore bed homing
-        curpos[1] = (
-            self.l0
-            +self.l1*math.cos(math.radians(self.a1))
-            +self.l2*math.cos(math.radians(self.a2))
-        )
-        curpos[2] = (
-            self.l1*math.sin(math.radians(self.a1))
-            -self.l2*math.sin(math.radians(self.a2))
-        )
+        curpos[0] = config.x
+        curpos[1] = config.y
+        curpos[2] = config.z
         toolhead.set_position(curpos, homing_axes=(0, 1, 2))
 
     def check_move(self, move):
