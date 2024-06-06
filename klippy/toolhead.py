@@ -602,6 +602,7 @@ class ToolHead:
         if self.do_kick_flush_timer:
             self.do_kick_flush_timer = False
             self.reactor.update_timer(self.flush_timer, self.reactor.NOW)
+        self.printer.send_event("toolhead:move", mq_time - self.print_time)
     def get_max_velocity(self):
         return self.max_velocity, self.max_accel
     def _calc_junction_deviation(self):

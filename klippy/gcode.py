@@ -96,6 +96,7 @@ class GCodeDispatch:
         printer.register_event_handler("klippy:shutdown", self._handle_shutdown)
         printer.register_event_handler("klippy:disconnect",
                                        self._handle_disconnect)
+        printer.register_event_handler("toolhead:move", self._handle_move)
         # Command handling
         self.is_printer_ready = False
         self.mutex = printer.get_reactor().mutex()
@@ -364,6 +365,14 @@ class GCodeDispatch:
             if cmd in self.gcode_help:
                 cmdhelp.append("%-10s: %s" % (cmd, self.gcode_help[cmd]))
         gcmd.respond_info("\n".join(cmdhelp), log=False)
+
+    def _handle_move(self, event_time):
+        reactor = self.printer.get_reactor()
+        waketime = reactor.monotonic() + event_time
+        reactor.register_callback(self.event_trigger_callback, waketime)
+
+    def event_trigger_callback(self, event_time):
+        self.respond_raw('toolhead:move')
 
 # Support reading gcode from a pseudo-tty interface
 class GCodeIO:
