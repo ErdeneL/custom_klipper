@@ -1,4 +1,4 @@
-# Code for handling the inverse kinematics
+# Code for handling the custom kinematics
 #
 # Copyright (C) 2024  Erdene Luvsandorj <erdene.lu.n@gmail.com>
 #
@@ -7,16 +7,32 @@
 import math
 import stepper
 import logging
-import chelper
+
+class CustomConfig:
+    def __init__(self, config) -> None:
+        # printer config
+        self.l0 = config.getfloat('l0', above=0.)
+        self.l1 = config.getfloat('l1', above=0.)
+        self.l2 = config.getfloat('l2', above=0.)
+        self.x = config.getfloat('x')
+        self.y = config.getfloat('y')
+        self.z = config.getfloat('z')
+
 
 class CustomKinematics:
     def __init__(self, toolhead, config):
         
+        c = CustomConfig(config)
+        self.config = c
+        
+        # future use
         self.printer = config.get_printer()
+        
+        # Setup steppers
         self.rails = []
-        for type in 'x':
-            r = stepper.LookupMultiRail(config.getsection('stepper_'+type))
-            r.setup_itersolve('cartesian_stepper_alloc', type.encode())
+        for type in 'bsa':
+            r = stepper.LookupMultiRail(config.getsection('stepper_'+type), units_in_radians=True)
+            r.setup_itersolve('custom_stepper_alloc', type.encode(), c.l0, c.l1, c.l2)
             self.rails.append(r)
         self.steppers = [s for rail in self.rails for s in rail.get_steppers()]
         for s in self.get_steppers():
@@ -28,50 +44,36 @@ class CustomKinematics:
     def calc_position(self, stepper_positions):
         pass
     def set_position(self, newpos, homing_axes):
-        for i, rail in enumerate(self.rails):
+        for rail in self.rails:
             rail.set_position(newpos)
     def home(self, homing_state):
-        self.home2(homing_state)
-
-    # using force_move, endstop_query
-    def home1(self, homing_state):
         
-        # force move stepper without kinematic
-        force_move = self.printer.lookup_object('force_move')
-        toolhead = homing_state.toolhead
-        toolhead.flush_step_generation()
-        for rail in self.rails:
-            for stepper in rail.get_steppers():
-                move_end_print_time = toolhead.get_last_move_time()
-                done = 0
-                for mcu_endstop, n in rail.get_endstops():
-                    while 1:
-                        done = mcu_endstop.query_endstop(move_end_print_time)
-                        if done:
-                            break
-                        force_move.manual_move(stepper, -.1, 200, 200)
-                        move_end_print_time = toolhead.get_last_move_time()
-        # set kinematic position
-        curpos = toolhead.get_position()
-        curpos[0] = 0
-        toolhead.set_position(curpos, homing_axes=(0, 1, 2))
-
-    def home2(self, homing_state):
-        toolhead = self.printer.lookup_object('toolhead')
+        # disable all motors, then move each stepper individually
+        self.printer.lookup_object('stepper_enable').motor_off()
+        for axis, rail in zip('xyz', self.rails):
+            rail.setup_itersolve('cartesian_stepper_alloc', axis.encode())
         for axis, rail in enumerate(self.rails):
-            rail.setup_itersolve('cartesian_stepper_alloc', 'x'.encode())
-            position_min, position_max = rail.get_range()
-            hi = rail.get_homing_info()
+            # ignore bed homing
+            if rail.get_name(True) == 'b':
+                continue
+            
             homepos = [None, None, None, None]
-            homepos[axis] = hi.position_endstop
+            homepos[axis] = 0
             forcepos = list(homepos)
-            if hi.positive_dir:
-                forcepos[axis] -= 1.5 * (hi.position_endstop - position_min)
-            else:
-                forcepos[axis] += 1.5 * (position_max - hi.position_endstop)
+            forcepos[axis] = -30
             homing_state.home_rails([rail], forcepos, homepos)
-            rail.setup_itersolve('cartesian_stepper_alloc', 'x'.encode())
-        toolhead.set_position([0,0,0,0], homing_axes=(0))
+        
+        # set kinematic and initial position
+        config = self.config
+        for axis, rail in enumerate(self.rails):
+            rail.setup_itersolve('custom_stepper_alloc'
+                    , rail.get_name(True).encode(), config.l0, config.l1, config.l2)
+        toolhead = self.printer.lookup_object('toolhead')
+        curpos = toolhead.get_position()
+        curpos[0] = config.x
+        curpos[1] = config.y
+        curpos[2] = config.z
+        toolhead.set_position(curpos, homing_axes=(0, 1, 2))
 
     def check_move(self, move):
         pass

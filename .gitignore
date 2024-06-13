@@ -8,3 +8,5 @@ dict/
 output
 *.cfg
 *.gcode
+.vscode/
+venv/

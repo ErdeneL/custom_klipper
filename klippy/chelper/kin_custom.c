@@ -1,4 +1,4 @@
-// Inverse kinematics stepper pulse time generation
+// custom kinematics stepper pulse time generation
 //
 // Copyright (C) 2024  Erdene Luvsandorj <erdene.lu.n@gmail.com>
 //
