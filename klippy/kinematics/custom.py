@@ -9,7 +9,7 @@ import stepper
 import logging
 
 class CustomConfig:
-    def __init__(self, config) -> None:
+    def __init__(self, config):
         # printer config
         self.l0 = config.getfloat('l0', above=0.)
         self.l1 = config.getfloat('l1', above=0.)
