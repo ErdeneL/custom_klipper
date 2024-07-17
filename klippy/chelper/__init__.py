@@ -166,7 +166,8 @@ defs_kin_idex = """
 
 defs_kin_custom = """
     struct stepper_kinematics *custom_stepper_alloc(char type
-        , double l0, double l1, double l2);
+        , double l0, double l1, double l2
+        , double gripper_d, double gripper_z);
 """
 
 defs_serialqueue = """

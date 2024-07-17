@@ -17,12 +17,13 @@ struct custom_stepper {
     struct stepper_kinematics sk;
     double l0;      //  l0=distance between shoulder and z
     double l1, l2;  //  l1=shoulder, l2=arm
+    double gripper_d, gripper_z;
 };
 
 /** 
     custom kinematics
-    x**2+y**2=(l0+l1*cos(a)+l2*cos(b))**2
-    l1*sin(a)-l2*sin(b)=z
+    x**2+y**2=(l0+l1*cos(a)+l2*cos(b)+gripper_d)**2
+    l1*sin(a)-l2*sin(b)+gripper_z=z
 **/
 
 static inline double
@@ -36,6 +37,18 @@ get_p(double l0, double l1, double l2, double x, double y, double z)
 {
     double r = get_r(l0, x, y);
     return (r*r+z*z-l1*l1-l2*l2)/(2*l1*l2);
+}
+
+static inline double
+get_l(double l0, double gripper_d)
+{
+    return l0+gripper_d;
+}
+
+static inline double
+get_z(double z, double gripper_z)
+{
+    return z-gripper_z;
 }
 
 static inline double
@@ -77,7 +90,8 @@ custom_stepper_shoulder_angle_calc(struct stepper_kinematics *sk, struct move *m
     struct custom_stepper *fs = container_of(
                 sk, struct custom_stepper, sk);
     struct coord c = move_get_coord(m, move_time);
-    return get_shoulder_angle(fs->l0, fs->l1, fs->l2, c.x, c.y, c.z);
+    return get_shoulder_angle(
+        get_l(fs->l0, fs->gripper_d), fs->l1, fs->l2, c.x, c.y, get_z(c.z, fs->gripper_z));
 }
 
 static double
@@ -86,18 +100,22 @@ custom_stepper_arm_angle_calc(struct stepper_kinematics *sk, struct move *m, dou
     struct custom_stepper *fs = container_of(
                 sk, struct custom_stepper, sk);
     struct coord c = move_get_coord(m, move_time);
-    return get_arm_angle(fs->l0, fs->l1, fs->l2, c.x, c.y, c.z);
+    return get_arm_angle(
+        get_l(fs->l0, fs->gripper_d), fs->l1, fs->l2, c.x, c.y, get_z(c.z, fs->gripper_z));
 }
 
 struct stepper_kinematics * __visible
 custom_stepper_alloc(char type
-    , double l0, double l1, double l2)
+    , double l0, double l1, double l2
+    , double gripper_d, double gripper_z)
 {
     struct custom_stepper *fs = malloc(sizeof(*fs));
     memset(fs, 0, sizeof(*fs));
     fs->l0 = l0;
     fs->l1 = l1;
     fs->l2 = l2;
+    fs->gripper_d = gripper_d;
+    fs->gripper_z = gripper_z;
     if (type == 'b') {
         fs->sk.calc_position_cb = custom_stepper_bed_angle_calc;
         fs->sk.active_flags = AF_X | AF_Y;

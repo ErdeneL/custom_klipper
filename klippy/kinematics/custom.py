@@ -14,6 +14,8 @@ class CustomConfig:
         self.l0 = config.getfloat('l0', above=0.)
         self.l1 = config.getfloat('l1', above=0.)
         self.l2 = config.getfloat('l2', above=0.)
+        self.gripper_d = config.getfloat('gripper_d')
+        self.gripper_z = config.getfloat('gripper_z')
         self.x = config.getfloat('x')
         self.y = config.getfloat('y')
         self.z = config.getfloat('z')
@@ -32,7 +34,8 @@ class CustomKinematics:
         self.rails = []
         for type in 'bsa':
             r = stepper.LookupMultiRail(config.getsection('stepper_'+type), units_in_radians=True)
-            r.setup_itersolve('custom_stepper_alloc', type.encode(), c.l0, c.l1, c.l2)
+            r.setup_itersolve('custom_stepper_alloc', type.encode()
+                              , c.l0, c.l1, c.l2, c.gripper_d, c.gripper_z)
             self.rails.append(r)
         self.steppers = [s for rail in self.rails for s in rail.get_steppers()]
         for s in self.get_steppers():
@@ -67,7 +70,8 @@ class CustomKinematics:
         config = self.config
         for axis, rail in enumerate(self.rails):
             rail.setup_itersolve('custom_stepper_alloc'
-                    , rail.get_name(True).encode(), config.l0, config.l1, config.l2)
+                    , rail.get_name(True).encode()
+                    , config.l0, config.l1, config.l2, config.gripper_d, config.gripper_z)
         toolhead = self.printer.lookup_object('toolhead')
         curpos = toolhead.get_position()
         curpos[0] = config.x
